@@ -12,29 +12,44 @@ import (
 func main() {
 	godotenv.Load() // load environment variables
 
-	ginEngine := gin.Default()
+	r := gin.Default()
 
-	ginEngine.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "Welcome to the URL Shortener API",
-		})
-	})
+	// r.GET("/", func(c *gin.Context) {
+	// 	c.JSON(200, gin.H{
+	// 		"message": "Welcome to the URL Shortener API",
+	// 	})
+	// })
 
-	ginEngine.POST("/create-short-url", func(c *gin.Context) {
+	r.POST("/create-short-url", func(c *gin.Context) {
 		// TODO: check if the user is logged in
 		// can be checked here or in handlers.go idk
 		// or in a function that checks it or something
 
-		handler.CreateShortUrl(c)
+		handler.CreateShortURL(c)
 	})
 
-	ginEngine.GET("/:shortUrl", func(c *gin.Context) {
-		handler.RedirectShortUrl(c)
+	r.GET("/short-urls/:userID", func(c *gin.Context) {
+		// TODO: security token
+		handler.GetUserShortenedURLs(c)
+	})
+
+	r.POST("/signup", func(c *gin.Context) {
+		handler.CreateUser(c)
+	})
+
+	r.POST("/login", func(c *gin.Context) {
+		handler.CheckUserLogin(c)
+	})
+
+	r.NoRoute(func(c *gin.Context) {
+		// TODO: check if the path is an 8 character long base58 string, return 404 if not -> handler.NotFound()
+
+		handler.RedirectShortURL(c)
 	})
 
 	store.InitializeStore()
 
-	err := ginEngine.Run(":9001")
+	err := r.Run(":9001")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to start the web server:\n%v", err))
 	}
