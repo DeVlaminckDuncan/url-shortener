@@ -1,15 +1,12 @@
 package store
 
-import (
-	"time"
+import "time"
 
-	"github.com/google/uuid"
-)
-
-type ShortenedUrl struct {
-	Id        uuid.UUID
-	CreatedAt time.Time `xorm:"created"`
-	ShortUrl  string
-	LongUrl   string
-	Visits    int
+// ShortenedURL contains a short URL with its associated data
+type ShortenedURL struct {
+	ID        string    `xorm:"pk not null unique"`
+	Name      string    `xorm:"not null"`
+	CreatedAt time.Time `xorm:"not null default CURRENT_TIMESTAMP created"`
+	ShortURL  string    `xorm:"not null unique"`
+	LongURL   string    `xorm:"not null"`
 }
