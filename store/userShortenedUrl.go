@@ -1,8 +1,7 @@
 package store
 
-import "github.com/google/uuid"
-
-type UserShortenedUrl struct {
-	UserId         uuid.UUID
-	ShortenedUrlId uuid.UUID
+// UserShortenedURL is a link between ShortenedURL and User
+type UserShortenedURL struct {
+	UserID         string `xorm:"not null"`
+	ShortenedURLID string `xorm:"not null"`
 }
