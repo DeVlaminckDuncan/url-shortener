@@ -1,11 +1,11 @@
 package store
 
-import "github.com/google/uuid"
-
+// User contains a user's account information
 type User struct {
-	Id        uuid.UUID
-	FirstName string
-	LastName  string
-	Email     string
-	Password  string
+	ID        string `xorm:"pk not null unique"`
+	FirstName string `xorm:"not null"`
+	LastName  string `xorm:"not null"`
+	Username  string `xorm:"not null unique"`
+	Email     string `xorm:"not null unique"`
+	Password  string `xorm:"not null"`
 }
