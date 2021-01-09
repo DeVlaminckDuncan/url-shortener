@@ -18,6 +18,14 @@ func main() {
 		handler.CreateShortURL(c)
 	})
 
+	r.PUT("/short-urls/:id", func(c *gin.Context) {
+		handler.UpdateShortURL(c)
+	})
+
+	r.DELETE("/short-urls/:id", func(c *gin.Context) {
+		handler.DeleteShortURL(c)
+	})
+
 	r.GET("/short-urls/:userID", func(c *gin.Context) {
 		// TODO: security token
 		handler.GetUserShortenedURLs(c)
