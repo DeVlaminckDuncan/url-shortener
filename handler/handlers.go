@@ -10,16 +10,8 @@ import (
 
 type urlCreationRequest struct {
 	Name    string `json:"name" binding:"required"`
-	LongURL string `json:"long_url" binding:"required"`
-	UserID  string `json:"user_id" binding:"required"`
-}
-
-type userSignupRequest struct {
-	FirstName string `json:"first_name" binding:"required"`
-	LastName  string `json:"last_name" binding:"required"`
-	Username  string `json:"username" binding:"required"`
-	Email     string `json:"email" binding:"required"`
-	Password  string `json:"password" binding:"required"`
+	LongURL string `json:"longURL" binding:"required"`
+	UserID  string `json:"userID" binding:"required"`
 }
 
 type userLoginRequest struct {
@@ -29,8 +21,9 @@ type userLoginRequest struct {
 }
 
 // TODO: check every request for empty values
-// TODO: add codes to JSON data eg "status_code": "URL_CREATED"
+// TODO: add codes to JSON data eg "statusCode": "URL_CREATED"
 
+// CreateShortURL takes a name, a long URL and a user ID and creates a new ShortenedURL
 func CreateShortURL(c *gin.Context) {
 	var creationRequest urlCreationRequest
 	if err := c.ShouldBindJSON(&creationRequest); err != nil {
@@ -39,26 +32,27 @@ func CreateShortURL(c *gin.Context) {
 	}
 
 	shortURL := shortener.GenerateShortURL(creationRequest.LongURL, creationRequest.UserID)
-	err := store.SaveURL(shortURL, creationRequest.Name, creationRequest.LongURL, creationRequest.UserID)
-	if err != "" {
+	statusCode, err := store.SaveURL(shortURL, creationRequest.Name, creationRequest.LongURL, creationRequest.UserID)
+	if statusCode != "" || err != nil {
 		status := http.StatusBadRequest
-		if err == "NON_EXISTING_USER" {
+		if statusCode == "NON_EXISTING_USER" {
 			status = http.StatusUnauthorized
 		}
 
 		c.JSON(status, gin.H{
-			"status_code": err,
+			"statusCode": statusCode,
+			"error":      err,
 		})
 		return
 	}
 
-	host := "http://localhost:9001/"
 	c.JSON(200, gin.H{
-		"message":   "Short URL created successfully",
-		"short_url": host + shortURL,
+		"message":  "Short URL created successfully",
+		"shortURL": "http://" + c.Request.Host + "/" + shortURL,
 	})
 }
 
+// RedirectShortURL takes a short URL redirects you to the long URL from the database and creates a new ShortenedURLVisitsHistory
 func RedirectShortURL(c *gin.Context) {
 	shortURL := c.Request.URL.Path[1:]
 	longURL := store.GetLongURL(shortURL)
@@ -66,43 +60,46 @@ func RedirectShortURL(c *gin.Context) {
 	c.Redirect(301, longURL)
 }
 
+// GetUserShortenedURLs takes a user ID and returns the user's ShortenedURLs
 func GetUserShortenedURLs(c *gin.Context) {
 	userID := c.Request.URL.Path[12:]
 
-	urls := store.GetUserShortenedURLs(userID)
+	urls, statusCode, err := store.GetUserShortenedURLs(userID)
+	if statusCode != "" || err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"statusCode": statusCode,
+			"error":      err,
+		})
+		return
+	}
 
 	c.JSON(200, urls)
 }
 
+// CreateUser takes a first name, a last name, a username, an email and a password and creates a new User and returns a new user token
 func CreateUser(c *gin.Context) {
-	var userData userSignupRequest
-	if err := c.ShouldBindJSON(&userData); err != nil {
+	var user store.User
+	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	user := store.User{
-		FirstName: userData.FirstName,
-		LastName:  userData.LastName,
-		Username:  userData.Username,
-		Email:     userData.Email,
-		Password:  userData.Password,
-	}
-
-	token := store.SaveUser(user)
-
-	if token != "" {
+	token, statusCode, err := store.SaveUser(user)
+	if statusCode != "" || err != nil {
+		c.JSON(401, gin.H{
+			"message":    "Something went wrong",
+			"statusCode": statusCode,
+			"error":      err,
+		})
+	} else {
 		c.JSON(200, gin.H{
 			"message": "User created successfully",
 			"token":   token,
 		})
-	} else {
-		c.JSON(401, gin.H{
-			"message": "Something went wrong",
-		})
 	}
 }
 
+// CheckUserLogin takes a username or email and a password and checks if the user exists and provided a correct password and returns a new user token
 func CheckUserLogin(c *gin.Context) {
 	var userData userLoginRequest
 	if err := c.ShouldBindJSON(&userData); err != nil {
@@ -116,19 +113,22 @@ func CheckUserLogin(c *gin.Context) {
 		Password: userData.Password,
 	}
 
-	token := store.CheckLogin(user)
-	if token != "" {
+	token, statusCode, err := store.CheckLogin(user)
+	if statusCode != "" || err != nil {
+		c.JSON(401, gin.H{
+			"message":    "Something went wrong",
+			"statusCode": statusCode,
+			"error":      err,
+		})
+	} else {
 		c.JSON(200, gin.H{
 			"message": "User logged in successfully",
 			"token":   token,
 		})
-	} else {
-		c.JSON(401, gin.H{
-			"message": "Something went wrong",
-		})
 	}
 }
 
+// NotFound returns a 404 with a "Not found" message
 func NotFound(c *gin.Context) {
 	c.JSON(404, gin.H{
 		"message": "Not found",
