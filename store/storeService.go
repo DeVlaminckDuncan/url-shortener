@@ -162,7 +162,7 @@ func checkUserExists(id string) (bool, error) {
 	var user User
 	userExists, err := storeService.URLShortenerDB.Table(&user).Where("ID = ?", id).Exist()
 	if err != nil {
-		fmt.Println("Failed to fetch User rows:\n", err)
+		fmt.Println("Failed to fetch User data:\n", err)
 		return false, err
 	}
 	return userExists, nil
@@ -173,7 +173,7 @@ func GetLongURL(shortURL string) string {
 	var shortenedURL ShortenedURL
 	_, err := storeService.URLShortenerDB.Table(&shortenedURL).Select("ID, LongURL").Where("ShortURL = ?", shortURL).Get(&shortenedURL)
 	if err != nil {
-		fmt.Println("Failed to fetch ShortenedURL rows:\n", err)
+		fmt.Println("Failed to fetch ShortenedURL data:\n", err)
 		// TODO: log error messages
 		// storeService.URLShortenerDB.Logger().Errorf()
 	}
@@ -234,7 +234,9 @@ func SaveURL(shortURL string, name string, longURL string, userID string) (strin
 
 // UpdateShortenedURL updates the given shortenedURL object in the database
 func UpdateShortenedURL(shortenedURL ShortenedURL) (string, error) {
-	_, err := storeService.URLShortenerDB.Update(&shortenedURL)
+	// TODO: what if the shortenedURL doesn't exist in the database?
+
+	_, err := storeService.URLShortenerDB.ID(shortenedURL.ID).Update(&shortenedURL)
 	if err != nil {
 		fmt.Println("Failed to update data in table ShortenedURL:\n", err)
 		return "ERROR_UPDATING_SHORTENEDURL", err
@@ -244,11 +246,46 @@ func UpdateShortenedURL(shortenedURL ShortenedURL) (string, error) {
 }
 
 // DeleteShortenedURL deletes the given shortenedURL object in the database
-func DeleteShortenedURL(shortenedURL ShortenedURL) (string, error) {
-	_, err := storeService.URLShortenerDB.Delete(&shortenedURL)
+func DeleteShortenedURL(id string) (string, error) {
+	var shortenedURL ShortenedURL
+	_, err := storeService.URLShortenerDB.Table(&shortenedURL).Where("ID = ?", id).Get(&shortenedURL)
+	if err != nil {
+		fmt.Println("Failed to fetch ShortenedURL data:\n", err)
+		return "ERROR_FETCHING_SHORTENEDURL", err
+	}
+
+	_, err = storeService.URLShortenerDB.Delete(&shortenedURL)
 	if err != nil {
 		fmt.Println("Failed to delete data from table ShortenedURL:\n", err)
 		return "ERROR_DELETING_SHORTENEDURL", err
+	}
+
+	var usershortenedURL UserShortenedURL
+	_, err = storeService.URLShortenerDB.Table(&usershortenedURL).Where("ShortenedURLID = ?", id).Get(&usershortenedURL)
+	if err != nil {
+		fmt.Println("Failed to fetch UserShortenedURL data:\n", err)
+		return "ERROR_FETCHING_USERSHORTENEDURL", err
+	}
+
+	_, err = storeService.URLShortenerDB.Delete(&usershortenedURL)
+	if err != nil {
+		fmt.Println("Failed to delete data from table UserShortenedURL:\n", err)
+		return "ERROR_DELETING_USERSHORTENEDURL", err
+	}
+
+	var analytics []ShortenedURLVisitsHistory
+	err = storeService.URLShortenerDB.Table(&ShortenedURLVisitsHistory{}).Find(&analytics, &ShortenedURLVisitsHistory{ShortenedURLID: id})
+	if err != nil {
+		fmt.Println("Failed to fetch ShortenedURLVisitsHistory data:\n", err)
+		return "ERROR_FETCHING_SHORTENEDURLVISITSHISTORY", err
+	}
+
+	for _, item := range analytics {
+		_, err = storeService.URLShortenerDB.Delete(&item)
+		if err != nil {
+			fmt.Println("Failed to delete data from table ShortenedURLVisitsHistory:\n", err)
+			return "ERROR_DELETING_SHORTENEDURLVISITSHISTORY", err
+		}
 	}
 
 	return "OK", nil
@@ -268,9 +305,9 @@ func GetUserShortenedURLs(userID string) ([]ShortenedURLData, string, error) {
 
 	// Get the ShortenedURLIDs by userID from table UserShortenedURL
 	var userShortenedURLs []UserShortenedURL
-	err = storeService.URLShortenerDB.Table("UserShortenedURL").Select("ShortenedURLID").Find(&userShortenedURLs, &UserShortenedURL{UserID: userID})
+	err = storeService.URLShortenerDB.Table(&UserShortenedURL{}).Select("ShortenedURLID").Find(&userShortenedURLs, &UserShortenedURL{UserID: userID})
 	if err != nil {
-		fmt.Println("Failed to fetch UserShortenedURL rows:\n", err)
+		fmt.Println("Failed to fetch UserShortenedURL data:\n", err)
 		return shortenedURLData, "ERROR_FETCHING_USERSHORTENEDURL", err
 	}
 
@@ -285,7 +322,7 @@ func GetUserShortenedURLs(userID string) ([]ShortenedURLData, string, error) {
 		if err == nil {
 			data.ShortenedURLObject = shortenedURL
 		} else {
-			fmt.Println("Failed to fetch ShortenedURL row:\n", err)
+			fmt.Println("Failed to fetch ShortenedURL data:\n", err)
 			return []ShortenedURLData{}, "ERROR_FETCHING_SHORTENEDURL", err
 		}
 
@@ -294,14 +331,14 @@ func GetUserShortenedURLs(userID string) ([]ShortenedURLData, string, error) {
 		if err == nil {
 			data.Analytics = urlAnalytics
 		} else if !strings.Contains(err.Error(), "Error 1054") {
-			fmt.Println("Failed to fetch ShortenedURLVisitsHistory row:\n", err)
+			fmt.Println("Failed to fetch ShortenedURLVisitsHistory data:\n", err)
 			return []ShortenedURLData{}, "ERROR_FETCHING_ANALYTICS", err
 		}
 
 		shortenedURLData = append(shortenedURLData, data)
 	}
 
-	return shortenedURLData, "", nil
+	return shortenedURLData, "OK", nil
 }
 
 func generateSecurityToken(user User) string {
@@ -372,11 +409,11 @@ func GetUser(userID string) (User, string, error) {
 	var user User
 	_, err := storeService.URLShortenerDB.Table(&user).Where("ID = ?", user.ID).Get(&user)
 	if err != nil {
-		fmt.Println("Failed to fetch User row:\n", err)
+		fmt.Println("Failed to fetch User data:\n", err)
 		return user, "ERROR_FETCHING_USER", err
 	}
 
-	return user, "", nil
+	return user, "OK", nil
 }
 
 // UpdateUser returns a User object by ID
@@ -387,7 +424,7 @@ func UpdateUser(user User) (string, error) {
 		return "ERROR_UPDATING_USER", err
 	}
 
-	return "", nil
+	return "OK", nil
 }
 
 // DeleteUser returns a User object by ID
@@ -398,7 +435,9 @@ func DeleteUser(user User) (string, error) {
 		return "ERROR_DELETING_USER", err
 	}
 
-	return "", nil
+	// TODO: delete the user's ShortenedURLs, ShortenedURLVisitsHistory and UserShortenedURLs
+
+	return "OK", nil
 }
 
 // CheckLogin compares the given password with the password hash from the database and returns a new token if they match
@@ -415,5 +454,5 @@ func CheckLogin(user User) (string, string, error) {
 	user.ID = userFromDatabase.ID
 	token := generateSecurityToken(user)
 
-	return token, "", nil
+	return token, "OK", nil
 }
