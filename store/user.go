@@ -2,10 +2,10 @@ package store
 
 // User contains a user's account information
 type User struct {
-	ID        string `xorm:"pk not null unique"`
-	FirstName string `xorm:"not null"`
-	LastName  string `xorm:"not null"`
-	Username  string `xorm:"not null unique"`
-	Email     string `xorm:"not null unique"`
-	Password  string `xorm:"not null"`
+	ID        string `json:"id,omitempty" xorm:"pk not null unique"`
+	FirstName string `json:"firstName" binding:"required" xorm:"not null"`
+	LastName  string `json:"lastName" binding:"required" xorm:"not null"`
+	Username  string `json:"username" binding:"required" xorm:"not null unique"`
+	Email     string `json:"email" binding:"required" xorm:"not null unique"`
+	Password  string `json:"password" binding:"required" xorm:"not null"`
 }
