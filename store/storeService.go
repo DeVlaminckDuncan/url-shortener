@@ -346,27 +346,25 @@ func generatePasswordHash(password string) (string, error) {
 }
 
 // SaveUser inserts a User object into the database
-func SaveUser(user User) string {
-	// TODO: add error to all functions
-
+func SaveUser(user User) (string, string, error) {
 	user.ID = uuid.NewV4().String()
 
 	hash, err := generatePasswordHash(user.Password)
 	if err != nil {
 		fmt.Println("Failed to generate password hash:\n", err)
-		return ""
+		return "", "ERROR_GENERATING_HASH", err
 	}
 	user.Password = hash
 
 	_, err = storeService.URLShortenerDB.Insert(&user)
 	if err != nil {
 		fmt.Println("Failed to insert data into table User:\n", err)
-		return ""
+		return "", "ERROR_INSERTING_USER", err
 	}
 
 	token := generateSecurityToken(user)
 
-	return token
+	return token, "", nil
 }
 
 // GetUser returns a User object by ID
