@@ -14,17 +14,7 @@ func main() {
 
 	r := gin.Default()
 
-	// r.GET("/", func(c *gin.Context) {
-	// 	c.JSON(200, gin.H{
-	// 		"message": "Welcome to the URL Shortener API",
-	// 	})
-	// })
-
-	r.POST("/create-short-url", func(c *gin.Context) {
-		// TODO: check if the user is logged in
-		// can be checked here or in handlers.go idk
-		// or in a function that checks it or something
-
+	r.POST("/short-urls", func(c *gin.Context) {
 		handler.CreateShortURL(c)
 	})
 
@@ -42,9 +32,13 @@ func main() {
 	})
 
 	r.NoRoute(func(c *gin.Context) {
-		// TODO: check if the path is an 8 character long base58 string, return 404 if not -> handler.NotFound()
+		shortURL := c.Request.URL.Path[1:]
 
-		handler.RedirectShortURL(c)
+		if len(shortURL) == 8 {
+			handler.RedirectShortURL(c)
+		} else {
+			handler.NotFound(c)
+		}
 	})
 
 	store.InitializeStore()
@@ -53,5 +47,4 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to start the web server:\n%v", err))
 	}
-
 }
