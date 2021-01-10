@@ -234,9 +234,17 @@ func SaveURL(shortURL string, name string, longURL string, userID string) (strin
 
 // UpdateShortenedURL updates the given shortenedURL object in the database
 func UpdateShortenedURL(shortenedURL ShortenedURL) (string, error) {
-	// TODO: what if the shortenedURL doesn't exist in the database?
+	shortenedURLExists, err := storeService.URLShortenerDB.Table(&shortenedURL).Where("ID = ?", shortenedURL.ID).Exist()
+	if err != nil {
+		fmt.Println("Failed to fetch ShortenedURL data:\n", err)
+		return "ERROR_FETCHING_SHORTENEDURL", err
+	}
 
-	_, err := storeService.URLShortenerDB.ID(shortenedURL.ID).Update(&shortenedURL)
+	if !shortenedURLExists {
+		return "NON_EXISTING_SHORTENEDURL", nil
+	}
+
+	_, err = storeService.URLShortenerDB.ID(shortenedURL.ID).Update(&shortenedURL)
 	if err != nil {
 		fmt.Println("Failed to update data in table ShortenedURL:\n", err)
 		return "ERROR_UPDATING_SHORTENEDURL", err
