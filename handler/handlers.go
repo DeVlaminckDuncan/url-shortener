@@ -113,7 +113,7 @@ func CreateShortURL(c *gin.Context) {
 
 // GetUserShortenedURLs takes a user ID and returns the user's ShortenedURLs
 func GetUserShortenedURLs(c *gin.Context) {
-	userID := c.Request.URL.Path[12:]
+	userID := c.Param("userID")
 
 	urls, statusCode, err := store.GetUserShortenedURLs(userID)
 	if statusCode != "OK" || err != nil {
