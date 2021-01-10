@@ -168,6 +168,17 @@ func checkUserExists(id string) (bool, error) {
 	return userExists, nil
 }
 
+func checkShortenedURLExists(id string) (bool, error) {
+	var shortenedURL ShortenedURL
+	shortenedURLExists, err := storeService.URLShortenerDB.Table(&shortenedURL).Where("ID = ?", id).Exist()
+	if err != nil {
+		fmt.Println("Failed to fetch ShortenedURL data:\n", err)
+		return false, err
+	}
+
+	return shortenedURLExists, nil
+}
+
 // GetLongURL returns the long URL based on the short URL
 func GetLongURL(shortURL string) string {
 	var shortenedURL ShortenedURL
@@ -234,12 +245,10 @@ func SaveURL(shortURL string, name string, longURL string, userID string) (strin
 
 // UpdateShortenedURL updates the given shortenedURL object in the database
 func UpdateShortenedURL(shortenedURL ShortenedURL) (string, error) {
-	shortenedURLExists, err := storeService.URLShortenerDB.Table(&shortenedURL).Where("ID = ?", shortenedURL.ID).Exist()
+	shortenedURLExists, err := checkShortenedURLExists(shortenedURL.ID)
 	if err != nil {
-		fmt.Println("Failed to fetch ShortenedURL data:\n", err)
 		return "ERROR_FETCHING_SHORTENEDURL", err
 	}
-
 	if !shortenedURLExists {
 		return "NON_EXISTING_SHORTENEDURL", nil
 	}
@@ -260,6 +269,14 @@ func DeleteShortenedURL(id string) (string, error) {
 	if err != nil {
 		fmt.Println("Failed to fetch ShortenedURL data:\n", err)
 		return "ERROR_FETCHING_SHORTENEDURL", err
+	}
+
+	shortenedURLExists, err := checkShortenedURLExists(id)
+	if err != nil {
+		return "ERROR_FETCHING_SHORTENEDURL", err
+	}
+	if !shortenedURLExists {
+		return "NON_EXISTING_SHORTENEDURL", nil
 	}
 
 	_, err = storeService.URLShortenerDB.Delete(&shortenedURL)
