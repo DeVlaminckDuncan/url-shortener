@@ -25,6 +25,14 @@ type userLoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type userUpdateRequest struct {
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+}
+
 // TODO: check every request for empty values
 // TODO: add codes to JSON data eg "statusCode": "URL_CREATED"
 
@@ -63,7 +71,7 @@ func UpdateShortURL(c *gin.Context) {
 	})
 }
 
-// DeleteShortURL takes a name and a long URL and deletes the ShortenedURL in the database
+// DeleteShortURL deletes the ShortenedURL in the database
 func DeleteShortURL(c *gin.Context) {
 	id := c.Param("id")
 
@@ -127,6 +135,75 @@ func GetUserShortenedURLs(c *gin.Context) {
 	c.JSON(200, urls)
 }
 
+// GetUser returns user information by user ID
+func GetUser(c *gin.Context) {
+	userID := c.Param("userID")
+
+	user, statusCode, err := store.GetUser(userID)
+	if statusCode != "OK" || err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"statusCode": statusCode,
+			"error":      err,
+		})
+		return
+	}
+
+	c.JSON(200, user)
+}
+
+// UpdateUser takes a first name, a last name, a username, an email and a password and updates the User in the database
+func UpdateUser(c *gin.Context) {
+	userID := c.Param("userID")
+
+	var userData userUpdateRequest
+	if err := c.ShouldBindJSON(&userData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user = store.User{
+		ID:        userID,
+		FirstName: userData.FirstName,
+		LastName:  userData.LastName,
+		Username:  userData.Username,
+		Email:     userData.Email,
+		Password:  userData.Password,
+	}
+
+	statusCode, err := store.UpdateUser(user)
+	if statusCode != "OK" || err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"statusCode": statusCode,
+			"error":      err,
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message":    "User updated successfully",
+		"statusCode": statusCode,
+	})
+}
+
+// DeleteUser deletes the User in the database
+func DeleteUser(c *gin.Context) {
+	userID := c.Param("userID")
+
+	statusCode, err := store.DeleteUser(userID)
+	if statusCode != "OK" || err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"statusCode": statusCode,
+			"error":      err,
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message":    "User deleted successfully",
+		"statusCode": statusCode,
+	})
+}
+
 // CreateUser takes a first name, a last name, a username, an email and a password and creates a new User and returns a new user token
 func CreateUser(c *gin.Context) {
 	var user store.User
@@ -138,7 +215,6 @@ func CreateUser(c *gin.Context) {
 	token, statusCode, err := store.SaveUser(user)
 	if statusCode != "OK" || err != nil {
 		c.JSON(401, gin.H{
-			"message":    "Something went wrong",
 			"statusCode": statusCode,
 			"error":      err,
 		})
@@ -169,7 +245,6 @@ func CheckUserLogin(c *gin.Context) {
 	token, statusCode, err := store.CheckLogin(user)
 	if statusCode != "OK" || err != nil {
 		c.JSON(401, gin.H{
-			"message":    "Something went wrong",
 			"statusCode": statusCode,
 			"error":      err,
 		})
