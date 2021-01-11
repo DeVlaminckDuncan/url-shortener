@@ -207,7 +207,7 @@ func SaveURL(shortURL string, name string, longURL string, userID string) (strin
 	if err != nil {
 		return "ERROR_CHECKING_USER", err
 	} else if !userExists {
-		return "NON_EXISTING_USER", err
+		return "NON_EXISTING_USER", nil
 	}
 
 	id := uuid.NewV4().String()
@@ -325,7 +325,7 @@ func GetUserShortenedURLs(userID string) ([]ShortenedURLData, string, error) {
 	if err != nil {
 		return shortenedURLData, "ERROR_CHECKING_USER", err
 	} else if !userExists {
-		return shortenedURLData, "NON_EXISTING_USER", err
+		return shortenedURLData, "NON_EXISTING_USER", nil
 	}
 
 	// Get the ShortenedURLIDs by userID from table UserShortenedURL
@@ -420,6 +420,10 @@ func SaveUser(user User) (string, string, error) {
 
 	_, err = storeService.URLShortenerDB.Insert(&user)
 	if err != nil {
+		if strings.Contains(err.Error(), "Error 1062") {
+			return "", "DUPLICATE_USER", err
+		}
+
 		fmt.Println("Failed to insert data into table User:\n", err)
 		return "", "ERROR_INSERTING_USER", err
 	}
@@ -431,19 +435,44 @@ func SaveUser(user User) (string, string, error) {
 
 // GetUser returns a User object by ID
 func GetUser(userID string) (User, string, error) {
-	var user User
-	_, err := storeService.URLShortenerDB.Table(&user).Where("ID = ?", user.ID).Get(&user)
+	userExists, err := checkUserExists(userID)
+	if err != nil {
+		return User{}, "ERROR_CHECKING_USER", err
+	} else if !userExists {
+		return User{}, "NON_EXISTING_USER", nil
+	}
+
+	var user = User{ID: userID}
+	_, err = storeService.URLShortenerDB.Table(&user).Select("FirstName, LastName, Username, Email").Where("ID = ?", user.ID).Get(&user)
 	if err != nil {
 		fmt.Println("Failed to fetch User data:\n", err)
-		return user, "ERROR_FETCHING_USER", err
+		return User{}, "ERROR_FETCHING_USER", err
 	}
 
 	return user, "OK", nil
 }
 
-// UpdateUser returns a User object by ID
+// UpdateUser updates the given user object in the database
 func UpdateUser(user User) (string, error) {
-	_, err := storeService.URLShortenerDB.Update(&user)
+	userExists, err := checkUserExists(user.ID)
+	if err != nil {
+		return "ERROR_FETCHING_USER", err
+	}
+	if !userExists {
+		return "NON_EXISTING_USER", nil
+	}
+
+	if user.Password != "" {
+		hash, err := generatePasswordHash(user.Password)
+		if err != nil {
+			fmt.Println("Failed to generate password hash:\n", err)
+			return "ERROR_GENERATING_HASH", err
+		}
+
+		user.Password = hash
+	}
+
+	_, err = storeService.URLShortenerDB.ID(user.ID).Update(&user)
 	if err != nil {
 		fmt.Println("Failed to update data in table User:\n", err)
 		return "ERROR_UPDATING_USER", err
@@ -453,14 +482,56 @@ func UpdateUser(user User) (string, error) {
 }
 
 // DeleteUser returns a User object by ID
-func DeleteUser(user User) (string, error) {
-	_, err := storeService.URLShortenerDB.Delete(&user)
+func DeleteUser(id string) (string, error) {
+	userExists, err := checkUserExists(id)
+	if err != nil {
+		return "ERROR_CHECKING_USER", err
+	} else if !userExists {
+		return "NON_EXISTING_USER", nil
+	}
+
+	// Delete the User
+	_, err = storeService.URLShortenerDB.Delete(&User{ID: id})
 	if err != nil {
 		fmt.Println("Failed to delete data from table User:\n", err)
 		return "ERROR_DELETING_USER", err
 	}
 
-	// TODO: delete the user's ShortenedURLs, ShortenedURLVisitsHistory and UserShortenedURLs
+	// Delete the UserTokens
+	_, err = storeService.URLShortenerDB.Delete(&UserToken{UserID: id})
+	if err != nil {
+		fmt.Println("Failed to delete data from table User:\n", err)
+		return "ERROR_DELETING_USER", err
+	}
+
+	// Get the ShortenedURLIDs by userID from table UserShortenedURL
+	var userShortenedURLs []UserShortenedURL
+	err = storeService.URLShortenerDB.Table(&UserShortenedURL{}).Select("ShortenedURLID").Find(&userShortenedURLs, &UserShortenedURL{UserID: id})
+	if err != nil {
+		fmt.Println("Failed to fetch UserShortenedURL data:\n", err)
+		return "ERROR_FETCHING_USERSHORTENEDURL", err
+	}
+
+	// Delete the UserShortenedURLs, ShortenedURLs and analytics (ShortenedURLVisitsHistory)
+	for _, userShortenedURL := range userShortenedURLs {
+		_, err = storeService.URLShortenerDB.Delete(&userShortenedURL)
+		if err != nil {
+			fmt.Println("Failed to delete data from table UserShortenedURL:\n", err)
+			return "ERROR_DELETING_USERSHORTENEDURL", err
+		}
+
+		_, err = storeService.URLShortenerDB.Delete(&ShortenedURL{ID: userShortenedURL.ShortenedURLID})
+		if err != nil {
+			fmt.Println("Failed to delete data from table UserShortenedURL:\n", err)
+			return "ERROR_DELETING_SHORTENEDURL", err
+		}
+
+		_, err = storeService.URLShortenerDB.Delete(&ShortenedURLVisitsHistory{ShortenedURLID: userShortenedURL.ShortenedURLID})
+		if err != nil {
+			fmt.Println("Failed to delete data from table ShortenedURLVisitsHistory:\n", err)
+			return "ERROR_DELETING_SHORTENEDURLVISITSHISTORY", err
+		}
+	}
 
 	return "OK", nil
 }
