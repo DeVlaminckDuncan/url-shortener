@@ -39,6 +39,18 @@ func main() {
 		handler.CheckUserLogin(c)
 	})
 
+	r.GET("/user/:userID", func(c *gin.Context) {
+		handler.GetUser(c)
+	})
+
+	r.PUT("/user/:userID", func(c *gin.Context) {
+		handler.UpdateUser(c)
+	})
+
+	r.DELETE("/user/:userID", func(c *gin.Context) {
+		handler.DeleteUser(c)
+	})
+
 	r.NoRoute(func(c *gin.Context) {
 		shortURL := c.Request.URL.Path[1:]
 
