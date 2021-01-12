@@ -110,11 +110,18 @@ func seedDatabase() error {
 		return err
 	}
 
-	userToken := UserToken{
-		UserID: user.ID,
-		Token:  []byte("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkR1bmNhbkRWIiwiZXhwIjoxNzAwMDAwMDAwfQ.X4Ju07IIAx0wij-iUGgMZn8XSHTT3u5RtGYL7eSmEb4"),
+	userTokens := []UserToken{
+		{
+			UserID: user.ID,
+			Token:  []byte("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkR1bmNhbkRWIiwiZXhwIjoxNzAwMDAwMDAwfQ.X4Ju07IIAx0wij-iUGgMZn8XSHTT3u5RtGYL7eSmEb4"),
+		},
+		{
+			UserID: user.ID,
+			Token:  []byte("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkR1bmNhbkRWIiwiZXhwIjoxNjAwMDAwMDAwfQ.vMZd0ser22aw92SWR-hAf5fmnGUFMF8isD8HY3eEfLM"),
+		},
 	}
-	_, err = storeService.URLShortenerDB.Insert(&userToken)
+
+	_, err = storeService.URLShortenerDB.Insert(&userTokens)
 	if err != nil {
 		fmt.Println("Failed to insert data into table UserToken:\n", err)
 		return err
@@ -471,7 +478,7 @@ func SaveUser(user User) (string, string, error) {
 		return "", statusCode, err
 	}
 
-	return token, "", nil
+	return token, "OK", nil
 }
 
 // GetUser returns a User object by ID, username or email
