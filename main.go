@@ -27,7 +27,6 @@ func main() {
 	})
 
 	r.GET("/short-urls/:userID", func(c *gin.Context) {
-		// TODO: security token
 		handler.GetUserShortenedURLs(c)
 	})
 
