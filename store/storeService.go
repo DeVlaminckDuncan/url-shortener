@@ -21,11 +21,6 @@ type storageService struct {
 	URLShortenerDB *xorm.Engine
 }
 
-type jwtClaims struct {
-	Username string
-	jwt.StandardClaims
-}
-
 var storeService = &storageService{}
 
 // InitializeStore creates the database if it doesn't exist and it synchronizes the tables.
@@ -61,7 +56,7 @@ func InitializeStore() {
 		}
 
 		databaseName := strings.Split(connectionString, "/")[1]
-		fmt.Println("Creating new database " + databaseName)
+		fmt.Println("Creating new database " + databaseName + "...")
 		_, err = generalEngine.Exec("CREATE DATABASE IF NOT EXISTS " + databaseName)
 		if err != nil {
 			panic(fmt.Sprintf("Failed to create database:\n%d", err))
@@ -115,6 +110,16 @@ func seedDatabase() error {
 		return err
 	}
 
+	userToken := UserToken{
+		UserID: user.ID,
+		Token:  []byte("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkR1bmNhbkRWIiwiZXhwIjoxNzAwMDAwMDAwfQ.X4Ju07IIAx0wij-iUGgMZn8XSHTT3u5RtGYL7eSmEb4"),
+	}
+	_, err = storeService.URLShortenerDB.Insert(&userToken)
+	if err != nil {
+		fmt.Println("Failed to insert data into table UserToken:\n", err)
+		return err
+	}
+
 	shortenedURLs := []ShortenedURL{
 		{
 			ID:      "ca48ac65-cb99-45eb-9fcb-ba69d1edb631",
@@ -158,16 +163,6 @@ func seedDatabase() error {
 	return nil
 }
 
-func checkUserExists(id string) (bool, error) {
-	var user User
-	userExists, err := storeService.URLShortenerDB.Table(&user).Where("ID = ?", id).Exist()
-	if err != nil {
-		fmt.Println("Failed to fetch User data:\n", err)
-		return false, err
-	}
-	return userExists, nil
-}
-
 func checkShortenedURLExists(id string) (bool, error) {
 	var shortenedURL ShortenedURL
 	shortenedURLExists, err := storeService.URLShortenerDB.Table(&shortenedURL).Where("ID = ?", id).Exist()
@@ -177,6 +172,90 @@ func checkShortenedURLExists(id string) (bool, error) {
 	}
 
 	return shortenedURLExists, nil
+}
+
+func generatePasswordHash(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hash), nil
+}
+
+// GenerateSecurityToken creates a new security token using a username and ID and saves it in the database
+func GenerateSecurityToken(user User) (string, string, error) {
+	expirationTime := time.Now().Add(5 * time.Minute)
+	claims := &JWTClaims{
+		Username: user.Username,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtKey := []byte(os.Getenv("SECRET_JWT_KEY"))
+	tokenString, err := token.SignedString(jwtKey)
+	if err != nil {
+		fmt.Println("Failed to create token string:\n", err)
+		return "", "ERROR_CREATING_TOKEN", err
+	}
+
+	userToken := UserToken{
+		UserID: user.ID,
+		Token:  []byte(tokenString),
+	}
+	_, err = storeService.URLShortenerDB.Insert(&userToken)
+	if err != nil {
+		fmt.Println("Failed to insert data into table UserToken:\n", err)
+		return "", "ERROR_INSERTING_USERTOKEN", err
+	}
+
+	return tokenString, "OK", nil
+}
+
+// CheckSecurityTokenExists checks whether the given security token exists in the database and if it expired
+func CheckSecurityTokenExists(tokenString string) (bool, string, error) {
+	tokenExists, err := storeService.URLShortenerDB.Table(&UserToken{}).Where("Token = ?", tokenString).Exist()
+	if err != nil {
+		fmt.Println("Failed to fetch UserToken data:\n", err)
+		return false, "ERROR_FETCHING_USERTOKEN", err
+	}
+	if !tokenExists {
+		return false, "NON_EXISTING_TOKEN", nil
+	}
+
+	return true, "OK", nil
+}
+
+// DeleteSecurityToken deletes the given security token from the database
+func DeleteSecurityToken(token string) (string, error) {
+	var userToken UserToken
+	_, err := storeService.URLShortenerDB.Table(&userToken).Where("Token = ?", token).Get(&userToken)
+	if err != nil {
+		fmt.Println("Failed to fetch UserToken data:\n", err)
+		return "ERROR_FETCHING_USERTOKEN", err
+	}
+
+	_, err = storeService.URLShortenerDB.Delete(&userToken)
+	if err != nil {
+		fmt.Println("Failed to delete data from table UserToken:\n", err)
+		return "ERROR_DELETING_USERTOKEN", err
+	}
+
+	return "OK", nil
+}
+
+// CheckUserExists checks if the given user ID, username or email exists in the database
+func CheckUserExists(uniqueValue string) (bool, string, error) {
+	var user User
+	userExists, err := storeService.URLShortenerDB.Table(&user).Where("ID = ? OR Username = ? OR Email = ?", uniqueValue, uniqueValue, uniqueValue).Exist()
+	if err != nil {
+		fmt.Println("Failed to fetch User data:\n", err)
+		return false, "ERROR_FETCHING_USER", err
+	}
+
+	return userExists, "OK", nil
 }
 
 // GetLongURL returns the long URL based on the short URL
@@ -203,9 +282,9 @@ func GetLongURL(shortURL string) string {
 
 // SaveURL inserts a ShortenedURL object and a UserShortenedURL object into the database
 func SaveURL(shortURL string, name string, longURL string, userID string) (string, error) {
-	userExists, err := checkUserExists(userID)
-	if err != nil {
-		return "ERROR_CHECKING_USER", err
+	userExists, statusCode, err := CheckUserExists(userID)
+	if statusCode != "OK" || err != nil {
+		return statusCode, err
 	} else if !userExists {
 		return "NON_EXISTING_USER", nil
 	}
@@ -321,9 +400,9 @@ func GetUserShortenedURLs(userID string) ([]ShortenedURLData, string, error) {
 	// TODO: add JSON names in the models ShortenedURLData, ShortenedURL, ShortenedURLVisitsHistory
 	var shortenedURLData []ShortenedURLData
 
-	userExists, err := checkUserExists(userID)
-	if err != nil {
-		return shortenedURLData, "ERROR_CHECKING_USER", err
+	userExists, statusCode, err := CheckUserExists(userID)
+	if statusCode != "OK" || err != nil {
+		return shortenedURLData, statusCode, err
 	} else if !userExists {
 		return shortenedURLData, "NON_EXISTING_USER", nil
 	}
@@ -366,47 +445,6 @@ func GetUserShortenedURLs(userID string) ([]ShortenedURLData, string, error) {
 	return shortenedURLData, "OK", nil
 }
 
-func generateSecurityToken(user User) string {
-	expirationTime := time.Now().Add(5 * time.Minute)
-	claims := &jwtClaims{
-		Username: user.Username,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	jwtKey := []byte(user.Password)
-	tokenString, err := token.SignedString(jwtKey)
-	if err != nil {
-		fmt.Println("Failed to create token string:\n", err)
-		return ""
-	}
-
-	var userToken = UserToken{
-		UserID: user.ID,
-		Token:  []byte(tokenString),
-	}
-	_, err = storeService.URLShortenerDB.Insert(userToken)
-	if err != nil {
-		fmt.Println("Failed to insert data into table UserToken:\n", err)
-		return ""
-	}
-
-	return tokenString
-}
-
-// TODO: checkSecurityToken() + delete the token if it expired and create a new one
-
-func generatePasswordHash(password string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
-	if err != nil {
-		return "", err
-	}
-
-	return string(hash), nil
-}
-
 // SaveUser inserts a User object into the database
 func SaveUser(user User) (string, string, error) {
 	user.ID = uuid.NewV4().String()
@@ -428,22 +466,25 @@ func SaveUser(user User) (string, string, error) {
 		return "", "ERROR_INSERTING_USER", err
 	}
 
-	token := generateSecurityToken(user)
+	token, statusCode, err := GenerateSecurityToken(user)
+	if statusCode != "OK" || err != nil {
+		return "", statusCode, err
+	}
 
 	return token, "", nil
 }
 
-// GetUser returns a User object by ID
-func GetUser(userID string) (User, string, error) {
-	userExists, err := checkUserExists(userID)
-	if err != nil {
-		return User{}, "ERROR_CHECKING_USER", err
+// GetUser returns a User object by ID, username or email
+func GetUser(uniqueValue string) (User, string, error) {
+	userExists, statusCode, err := CheckUserExists(uniqueValue)
+	if statusCode != "OK" || err != nil {
+		return User{}, statusCode, err
 	} else if !userExists {
 		return User{}, "NON_EXISTING_USER", nil
 	}
 
-	var user = User{ID: userID}
-	_, err = storeService.URLShortenerDB.Table(&user).Select("FirstName, LastName, Username, Email").Where("ID = ?", user.ID).Get(&user)
+	var user User
+	_, err = storeService.URLShortenerDB.Table(&user).Select("ID, FirstName, LastName, Username, Email").Where("ID = ? OR Username = ? OR Email = ?", uniqueValue, uniqueValue, uniqueValue).Get(&user)
 	if err != nil {
 		fmt.Println("Failed to fetch User data:\n", err)
 		return User{}, "ERROR_FETCHING_USER", err
@@ -454,9 +495,9 @@ func GetUser(userID string) (User, string, error) {
 
 // UpdateUser updates the given user object in the database
 func UpdateUser(user User) (string, error) {
-	userExists, err := checkUserExists(user.ID)
-	if err != nil {
-		return "ERROR_FETCHING_USER", err
+	userExists, statusCode, err := CheckUserExists(user.ID)
+	if statusCode != "OK" || err != nil {
+		return statusCode, err
 	}
 	if !userExists {
 		return "NON_EXISTING_USER", nil
@@ -483,9 +524,9 @@ func UpdateUser(user User) (string, error) {
 
 // DeleteUser returns a User object by ID
 func DeleteUser(id string) (string, error) {
-	userExists, err := checkUserExists(id)
-	if err != nil {
-		return "ERROR_CHECKING_USER", err
+	userExists, statusCode, err := CheckUserExists(id)
+	if statusCode != "OK" || err != nil {
+		return statusCode, err
 	} else if !userExists {
 		return "NON_EXISTING_USER", nil
 	}
@@ -548,7 +589,10 @@ func CheckLogin(user User) (string, string, error) {
 	}
 
 	user.ID = userFromDatabase.ID
-	token := generateSecurityToken(user)
+	token, statusCode, err := GenerateSecurityToken(user)
+	if statusCode != "OK" || err != nil {
+		return "", statusCode, err
+	}
 
 	return token, "OK", nil
 }
