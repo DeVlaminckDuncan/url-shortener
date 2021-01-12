@@ -2,9 +2,12 @@ package handler
 
 import (
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/devlaminckduncan/url-shortener/shortener"
 	"github.com/devlaminckduncan/url-shortener/store"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 )
 
@@ -33,8 +36,76 @@ type userUpdateRequest struct {
 	Password  string `json:"password"`
 }
 
-// TODO: check every request for empty values
-// TODO: add codes to JSON data eg "statusCode": "URL_CREATED"
+type tokenHeader struct {
+	Authorization string `header:"Authorization" binding:"required"`
+}
+
+func parseTokenWithClaims(tokenString string) (*jwt.Token, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &store.JWTClaims{}, func(t *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("SECRET_JWT_KEY")), nil
+	})
+
+	return token, err
+}
+
+func checkSecurityToken(c *gin.Context) (bool, string, error) {
+	var tokenHeaderData tokenHeader
+	if err := c.ShouldBindHeader(&tokenHeaderData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return false, "ERROR_BINDING_HEADER", err
+	}
+
+	tokenString := strings.Replace(tokenHeaderData.Authorization, "Bearer ", "", 1)
+
+	token, err := parseTokenWithClaims(tokenString)
+	if err != nil && strings.Contains(err.Error(), "token is expired by") {
+		claims, _ := token.Claims.(*store.JWTClaims)
+		user, statusCode, err := store.GetUser(claims.Username)
+		if statusCode != "OK" || err != nil {
+			return false, statusCode, err
+		}
+
+		statusCode, err = store.DeleteSecurityToken(tokenString)
+		if statusCode != "OK" || err != nil {
+			return false, statusCode, err
+		}
+
+		tokenString, statusCode, err = store.GenerateSecurityToken(user)
+		if statusCode != "OK" || err != nil {
+			return false, statusCode, err
+		}
+
+		token, err = parseTokenWithClaims(tokenString)
+		if err != nil {
+			return false, "ERROR_GENERATING_TOKEN", err
+		}
+		// TODO: return the new token
+	}
+
+	if claims, ok := token.Claims.(*store.JWTClaims); !ok || !token.Valid {
+		return false, "INVALID_TOKEN", err
+	} else if userExists, statusCode, err := store.CheckUserExists(claims.Username); err != nil || !userExists {
+		return false, statusCode, err
+	}
+
+	tokenExists, statusCode, err := store.CheckSecurityTokenExists(tokenString)
+	if statusCode != "OK" || err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"statusCode": statusCode,
+			"error":      err,
+		})
+		return false, statusCode, err
+	}
+	if !tokenExists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"statusCode": statusCode,
+			"error":      err,
+		})
+		return false, "NON_EXISTING_TOKEN", err
+	}
+
+	return true, "OK", nil
+}
 
 // RedirectShortURL takes a short URL redirects you to the long URL from the database and creates a new ShortenedURLVisitsHistory
 func RedirectShortURL(c *gin.Context) {
@@ -46,6 +117,10 @@ func RedirectShortURL(c *gin.Context) {
 
 // UpdateShortURL takes a name and a long URL and updates the ShortenedURL in the database
 func UpdateShortURL(c *gin.Context) {
+	if ok, _, _ := checkSecurityToken(c); !ok {
+		return
+	}
+
 	var urlData urlUpdateRequest
 	if err := c.ShouldBindJSON(&urlData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -73,6 +148,10 @@ func UpdateShortURL(c *gin.Context) {
 
 // DeleteShortURL deletes the ShortenedURL in the database
 func DeleteShortURL(c *gin.Context) {
+	if ok, _, _ := checkSecurityToken(c); !ok {
+		return
+	}
+
 	id := c.Param("id")
 
 	statusCode, err := store.DeleteShortenedURL(id)
@@ -91,6 +170,10 @@ func DeleteShortURL(c *gin.Context) {
 
 // CreateShortURL takes a name, a long URL and a user ID and creates a new ShortenedURL
 func CreateShortURL(c *gin.Context) {
+	if ok, _, _ := checkSecurityToken(c); !ok {
+		return
+	}
+
 	var creationRequest urlCreationRequest
 	if err := c.ShouldBindJSON(&creationRequest); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -121,6 +204,10 @@ func CreateShortURL(c *gin.Context) {
 
 // GetUserShortenedURLs takes a user ID and returns the user's ShortenedURLs
 func GetUserShortenedURLs(c *gin.Context) {
+	if ok, _, _ := checkSecurityToken(c); !ok {
+		return
+	}
+
 	userID := c.Param("userID")
 
 	urls, statusCode, err := store.GetUserShortenedURLs(userID)
@@ -137,6 +224,10 @@ func GetUserShortenedURLs(c *gin.Context) {
 
 // GetUser returns user information by user ID
 func GetUser(c *gin.Context) {
+	if ok, _, _ := checkSecurityToken(c); !ok {
+		return
+	}
+
 	userID := c.Param("userID")
 
 	user, statusCode, err := store.GetUser(userID)
@@ -153,6 +244,10 @@ func GetUser(c *gin.Context) {
 
 // UpdateUser takes a first name, a last name, a username, an email and a password and updates the User in the database
 func UpdateUser(c *gin.Context) {
+	if ok, _, _ := checkSecurityToken(c); !ok {
+		return
+	}
+
 	userID := c.Param("userID")
 
 	var userData userUpdateRequest
@@ -187,6 +282,10 @@ func UpdateUser(c *gin.Context) {
 
 // DeleteUser deletes the User in the database
 func DeleteUser(c *gin.Context) {
+	if ok, _, _ := checkSecurityToken(c); !ok {
+		return
+	}
+
 	userID := c.Param("userID")
 
 	statusCode, err := store.DeleteUser(userID)
