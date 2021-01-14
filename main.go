@@ -5,6 +5,7 @@ import (
 
 	"github.com/devlaminckduncan/url-shortener/handler"
 	"github.com/devlaminckduncan/url-shortener/store"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -13,6 +14,14 @@ func main() {
 	godotenv.Load() // load environment variables
 
 	r := gin.Default()
+
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = []string{"http://localhost:8080", "https://go-url-shortener.netlify.app"}
+	corsConfig.AddAllowHeaders("Origin", "Authorization")
+	corsConfig.AddAllowHeaders("OPTIONS", "GET", "POST", "PUT", "DELETE")
+
+	// Must use CORS before defining any routes or they won't be able to use CORS!
+	r.Use(cors.New(corsConfig))
 
 	r.POST("/short-urls", func(c *gin.Context) {
 		handler.CreateShortURL(c)
