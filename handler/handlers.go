@@ -374,7 +374,7 @@ func CheckUserLogin(c *gin.Context) {
 		Password: userData.Password,
 	}
 
-	token, statusCode, err := store.CheckLogin(user)
+	token, userID, statusCode, err := store.CheckLogin(user)
 	if statusCode != "OK" || err != nil {
 		c.JSON(401, gin.H{
 			"statusCode": statusCode,
@@ -387,6 +387,7 @@ func CheckUserLogin(c *gin.Context) {
 		"message":    "User logged in successfully",
 		"statusCode": statusCode,
 		"token":      token,
+		"userID":     userID,
 	})
 }
 
