@@ -229,7 +229,7 @@ func CheckSecurityTokenExists(tokenString string) (bool, string, error) {
 		return false, "ERROR_FETCHING_USERTOKEN", err
 	}
 	if !tokenExists {
-		return false, "NON_EXISTING_TOKEN", nil
+		return false, "NON_EXISTING_USERTOKEN", nil
 	}
 
 	return true, "OK", nil
@@ -237,8 +237,13 @@ func CheckSecurityTokenExists(tokenString string) (bool, string, error) {
 
 // DeleteSecurityToken deletes the given security token from the database
 func DeleteSecurityToken(token string) (string, error) {
+	tokenExists, statusCode, err := CheckSecurityTokenExists(token)
+	if statusCode != "OK" || err != nil || !tokenExists {
+		return statusCode, err
+	}
+
 	var userToken UserToken
-	_, err := storeService.URLShortenerDB.Table(&userToken).Where("Token = ?", token).Get(&userToken)
+	_, err = storeService.URLShortenerDB.Table(&userToken).Where("Token = ?", token).Get(&userToken)
 	if err != nil {
 		fmt.Println("Failed to fetch UserToken data:\n", err)
 		return "ERROR_FETCHING_USERTOKEN", err
@@ -585,21 +590,21 @@ func DeleteUser(id string) (string, error) {
 }
 
 // CheckLogin compares the given password with the password hash from the database and returns a new token if they match
-func CheckLogin(user User) (string, string, error) {
+func CheckLogin(user User) (string, string, string, error) {
 	var userFromDatabase User
 	_, err := storeService.URLShortenerDB.Table(&user).Select("ID, Password").Where("Username = ? OR Email = ?", user.Username, user.Email).Get(&userFromDatabase)
 
 	err = bcrypt.CompareHashAndPassword([]byte(userFromDatabase.Password), []byte(user.Password))
 	if err != nil {
 		fmt.Println(err)
-		return "", "ERROR_FETCHING_USER", err
+		return "", "", "ERROR_FETCHING_USER", err
 	}
 
 	user.ID = userFromDatabase.ID
 	token, statusCode, err := GenerateSecurityToken(user)
 	if statusCode != "OK" || err != nil {
-		return "", statusCode, err
+		return "", "", statusCode, err
 	}
 
-	return token, "OK", nil
+	return token, user.ID, "OK", nil
 }
