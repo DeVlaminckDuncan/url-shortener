@@ -285,11 +285,12 @@ func UpdateUser(c *gin.Context) {
 			Password:  userData.Password,
 		}
 
-		statusCode, err := store.UpdateUser(user)
+		newToken, statusCode, err = store.UpdateUser(user)
 		if statusCode != "OK" || err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"statusCode": statusCode,
 				"error":      err,
+				"newToken":   newToken,
 			})
 			return
 		}
