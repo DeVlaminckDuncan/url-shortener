@@ -284,6 +284,8 @@ func GetLongURL(shortURL string) string {
 		ShortenedURLID: shortenedURL.ID,
 	}
 
+	fmt.Println(visitsHistory)
+
 	_, err = storeService.URLShortenerDB.Insert(&visitsHistory)
 	if err != nil {
 		fmt.Println("Failed to insert data into table ShortenedURLVisitsHistory:\n", err)
@@ -293,12 +295,12 @@ func GetLongURL(shortURL string) string {
 }
 
 // SaveURL inserts a ShortenedURL object and a UserShortenedURL object into the database
-func SaveURL(shortURL string, name string, longURL string, userID string) (string, error) {
+func SaveURL(shortURL string, name string, longURL string, userID string) (ShortenedURL, string, error) {
 	userExists, statusCode, err := CheckUserExists(userID)
 	if statusCode != "OK" || err != nil {
-		return statusCode, err
+		return ShortenedURL{}, statusCode, err
 	} else if !userExists {
-		return "NON_EXISTING_USER", nil
+		return ShortenedURL{}, "NON_EXISTING_USER", nil
 	}
 
 	id := uuid.NewV4().String()
@@ -313,11 +315,11 @@ func SaveURL(shortURL string, name string, longURL string, userID string) (strin
 	_, err = storeService.URLShortenerDB.Insert(&shortenedURL)
 	if err != nil {
 		if strings.Contains(err.Error(), "Error 1062") {
-			return "DUPLICATE_URL", err
+			return ShortenedURL{}, "DUPLICATE_URL", err
 		}
 
 		fmt.Println("Failed to insert data into table ShortenedURL:\n", err)
-		return "ERROR_INSERTING_SHORTENEDURL", err
+		return ShortenedURL{}, "ERROR_INSERTING_SHORTENEDURL", err
 	}
 
 	var userShortenedURL = UserShortenedURL{
@@ -328,10 +330,13 @@ func SaveURL(shortURL string, name string, longURL string, userID string) (strin
 	_, err = storeService.URLShortenerDB.Insert(&userShortenedURL)
 	if err != nil {
 		fmt.Println("Failed to insert url data into table UserShortenedURL:\n", err)
-		return "ERROR_INSERTING_USERSHORTENEDURL", err
+		return ShortenedURL{}, "ERROR_INSERTING_USERSHORTENEDURL", err
 	}
 
-	return "OK", nil
+	now := time.Now()
+	shortenedURL.CreatedAt = now
+
+	return shortenedURL, "OK", nil
 }
 
 // UpdateShortenedURL updates the given shortenedURL object in the database
