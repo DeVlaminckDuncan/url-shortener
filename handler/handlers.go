@@ -18,7 +18,7 @@ type urlCreationRequest struct {
 }
 
 type urlUpdateRequest struct {
-	Name string `json:"name"`
+	Name string `json:"name" binding:"required"`
 }
 
 type userLoginRequest struct {
