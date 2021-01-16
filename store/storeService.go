@@ -509,32 +509,49 @@ func GetUser(uniqueValue string) (User, string, error) {
 }
 
 // UpdateUser updates the given user object in the database
-func UpdateUser(user User) (string, error) {
+func UpdateUser(user User) (string, string, error) {
 	userExists, statusCode, err := CheckUserExists(user.ID)
 	if statusCode != "OK" || err != nil {
-		return statusCode, err
+		return "", statusCode, err
 	}
 	if !userExists {
-		return "NON_EXISTING_USER", nil
+		return "", "NON_EXISTING_USER", nil
 	}
 
 	if user.Password != "" {
 		hash, err := generatePasswordHash(user.Password)
 		if err != nil {
 			fmt.Println("Failed to generate password hash:\n", err)
-			return "ERROR_GENERATING_HASH", err
+			return "", "ERROR_GENERATING_HASH", err
 		}
 
 		user.Password = hash
 	}
 
+	var oldUser User
+	_, err = storeService.URLShortenerDB.Table(&oldUser).Select("ID, FirstName, LastName, Username, Email").Where("ID = ?", user.ID).Get(&oldUser)
+	if err != nil {
+		fmt.Println("Failed to fetch User data:\n", err)
+		return "", "ERROR_FETCHING_USER", err
+	}
+
 	_, err = storeService.URLShortenerDB.ID(user.ID).Update(&user)
 	if err != nil {
 		fmt.Println("Failed to update data in table User:\n", err)
-		return "ERROR_UPDATING_USER", err
+		return "", "ERROR_UPDATING_USER", err
 	}
 
-	return "OK", nil
+	// Create a new token if the username was changed because the payload of the token contains the username
+	if user.Username != oldUser.Username {
+		newToken, statusCode, err := GenerateSecurityToken(user)
+		if statusCode != "OK" || err != nil {
+			return "", statusCode, err
+		}
+
+		return newToken, "OK", nil
+	}
+
+	return "", "OK", nil
 }
 
 // DeleteUser returns a User object by ID
