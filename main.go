@@ -23,39 +23,39 @@ func main() {
 	// Must use CORS before defining any routes or they won't be able to use CORS!
 	r.Use(cors.New(corsConfig))
 
-	r.POST("/short-urls", func(c *gin.Context) {
+	r.POST("/api/short-urls", func(c *gin.Context) {
 		handler.CreateShortURL(c)
 	})
 
-	r.PUT("/short-urls/:id", func(c *gin.Context) {
+	r.PUT("/api/short-urls/:id", func(c *gin.Context) {
 		handler.UpdateShortURL(c)
 	})
 
-	r.DELETE("/short-urls/:id", func(c *gin.Context) {
+	r.DELETE("/api/short-urls/:id", func(c *gin.Context) {
 		handler.DeleteShortURL(c)
 	})
 
-	r.GET("/short-urls/:userID", func(c *gin.Context) {
+	r.GET("/api/short-urls/:userID", func(c *gin.Context) {
 		handler.GetUserShortenedURLs(c)
 	})
 
-	r.POST("/signup", func(c *gin.Context) {
+	r.POST("/api/signup", func(c *gin.Context) {
 		handler.CreateUser(c)
 	})
 
-	r.POST("/login", func(c *gin.Context) {
+	r.POST("/api/login", func(c *gin.Context) {
 		handler.CheckUserLogin(c)
 	})
 
-	r.GET("/user/:userID", func(c *gin.Context) {
+	r.GET("/api/user/:userID", func(c *gin.Context) {
 		handler.GetUser(c)
 	})
 
-	r.PUT("/user/:userID", func(c *gin.Context) {
+	r.PUT("/api/user/:userID", func(c *gin.Context) {
 		handler.UpdateUser(c)
 	})
 
-	r.DELETE("/user/:userID", func(c *gin.Context) {
+	r.DELETE("/api/user/:userID", func(c *gin.Context) {
 		handler.DeleteUser(c)
 	})
 
