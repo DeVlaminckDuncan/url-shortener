@@ -104,7 +104,7 @@ func RedirectShortURL(c *gin.Context) {
 	shortURL := c.Request.URL.Path[1:]
 	longURL := store.GetLongURL(shortURL)
 
-	c.Redirect(301, longURL)
+	c.Redirect(302, longURL)
 }
 
 // UpdateShortURL takes a name and a long URL and updates the ShortenedURL in the database
@@ -240,6 +240,8 @@ func GetUser(c *gin.Context) {
 	ok, newToken, statusCode, err := checkSecurityToken(c)
 	if ok {
 		userID := c.Param("userID")
+
+		// TODO: check if the username from the given security token matches the one from the given user ID
 
 		user, statusCode, err := store.GetUser(userID)
 		if statusCode != "OK" || err != nil {
