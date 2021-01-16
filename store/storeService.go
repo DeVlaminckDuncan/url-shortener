@@ -284,8 +284,6 @@ func GetLongURL(shortURL string) string {
 		ShortenedURLID: shortenedURL.ID,
 	}
 
-	fmt.Println(visitsHistory)
-
 	_, err = storeService.URLShortenerDB.Insert(&visitsHistory)
 	if err != nil {
 		fmt.Println("Failed to insert data into table ShortenedURLVisitsHistory:\n", err)
