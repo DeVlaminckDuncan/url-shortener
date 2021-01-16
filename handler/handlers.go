@@ -18,8 +18,7 @@ type urlCreationRequest struct {
 }
 
 type urlUpdateRequest struct {
-	Name    string `json:"name"`
-	LongURL string `json:"longURL"`
+	Name string `json:"name"`
 }
 
 type userLoginRequest struct {
@@ -57,6 +56,11 @@ func checkSecurityToken(c *gin.Context) (bool, string, string, error) {
 
 	tokenString := strings.Replace(tokenHeaderData.Authorization, "Bearer ", "", 1)
 	var newTokenString string
+
+	tokenExists, statusCode, err := store.CheckSecurityTokenExists(tokenString)
+	if statusCode != "OK" || err != nil || !tokenExists {
+		return false, "", statusCode, err
+	}
 
 	token, err := parseTokenWithClaims(tokenString)
 	if err != nil && strings.Contains(err.Error(), "token is expired by") {
@@ -114,9 +118,8 @@ func UpdateShortURL(c *gin.Context) {
 		}
 
 		var shortenedURL = store.ShortenedURL{
-			ID:      c.Param("id"),
-			Name:    urlData.Name,
-			LongURL: urlData.LongURL,
+			ID:   c.Param("id"),
+			Name: urlData.Name,
 		}
 		statusCode, err = store.UpdateShortenedURL(shortenedURL)
 		if statusCode != "OK" || err != nil {
@@ -143,7 +146,6 @@ func UpdateShortURL(c *gin.Context) {
 func DeleteShortURL(c *gin.Context) {
 	ok, newToken, statusCode, err := checkSecurityToken(c)
 	if ok {
-
 		id := c.Param("id")
 
 		statusCode, err := store.DeleteShortenedURL(id)
@@ -171,7 +173,6 @@ func DeleteShortURL(c *gin.Context) {
 func CreateShortURL(c *gin.Context) {
 	ok, newToken, statusCode, err := checkSecurityToken(c)
 	if ok {
-
 		var creationRequest urlCreationRequest
 		if err := c.ShouldBindJSON(&creationRequest); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -179,7 +180,7 @@ func CreateShortURL(c *gin.Context) {
 		}
 
 		shortURL := shortener.GenerateShortURL(creationRequest.LongURL, creationRequest.UserID)
-		statusCode, err := store.SaveURL(shortURL, creationRequest.Name, creationRequest.LongURL, creationRequest.UserID)
+		shortenedURL, statusCode, err := store.SaveURL(shortURL, creationRequest.Name, creationRequest.LongURL, creationRequest.UserID)
 		if statusCode != "OK" || err != nil {
 			status := http.StatusBadRequest
 			if statusCode == "NON_EXISTING_USER" {
@@ -194,10 +195,10 @@ func CreateShortURL(c *gin.Context) {
 		}
 
 		c.JSON(200, gin.H{
-			"message":    "Short URL created successfully",
-			"statusCode": statusCode,
-			"shortURL":   "http://" + c.Request.Host + "/" + shortURL,
-			"newToken":   newToken,
+			"message":      "Short URL created successfully",
+			"statusCode":   statusCode,
+			"shortenedURL": shortenedURL,
+			"newToken":     newToken,
 		})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -211,7 +212,6 @@ func CreateShortURL(c *gin.Context) {
 func GetUserShortenedURLs(c *gin.Context) {
 	ok, newToken, statusCode, err := checkSecurityToken(c)
 	if ok {
-
 		userID := c.Param("userID")
 
 		urls, statusCode, err := store.GetUserShortenedURLs(userID)
@@ -239,7 +239,6 @@ func GetUserShortenedURLs(c *gin.Context) {
 func GetUser(c *gin.Context) {
 	ok, newToken, statusCode, err := checkSecurityToken(c)
 	if ok {
-
 		userID := c.Param("userID")
 
 		user, statusCode, err := store.GetUser(userID)
@@ -267,7 +266,6 @@ func GetUser(c *gin.Context) {
 func UpdateUser(c *gin.Context) {
 	ok, newToken, statusCode, err := checkSecurityToken(c)
 	if ok {
-
 		userID := c.Param("userID")
 
 		var userData userUpdateRequest
@@ -311,7 +309,6 @@ func UpdateUser(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	ok, newToken, statusCode, err := checkSecurityToken(c)
 	if ok {
-
 		userID := c.Param("userID")
 
 		statusCode, err := store.DeleteUser(userID)
