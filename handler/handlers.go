@@ -92,10 +92,10 @@ func checkSecurityToken(c *gin.Context) (bool, string, string, string, error) {
 	}
 
 	if newTokenString != "" {
-		return false, user.ID, newTokenString, "OK", nil
+		return true, newTokenString, user.ID, "OK", nil
 	}
 
-	return false, user.ID, "", "OK", nil
+	return true, "", user.ID, "OK", nil
 }
 
 // RedirectShortURL takes a short URL redirects you to the long URL from the database and creates a new ShortenedURLVisitsHistory
