@@ -47,11 +47,11 @@ func parseTokenWithClaims(tokenString string) (*jwt.Token, error) {
 	return token, err
 }
 
-func checkSecurityToken(c *gin.Context) (bool, string, string, error) {
+func checkSecurityToken(c *gin.Context) (bool, string, string, string, error) {
 	var tokenHeaderData tokenHeader
 	if err := c.ShouldBindHeader(&tokenHeaderData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return false, "", "ERROR_BINDING_HEADER", err
+		return false, "", "", "ERROR_BINDING_HEADER", err
 	}
 
 	tokenString := strings.Replace(tokenHeaderData.Authorization, "Bearer ", "", 1)
@@ -59,44 +59,43 @@ func checkSecurityToken(c *gin.Context) (bool, string, string, error) {
 
 	tokenExists, statusCode, err := store.CheckSecurityTokenExists(tokenString)
 	if statusCode != "OK" || err != nil || !tokenExists {
-		return false, "", statusCode, err
+		return false, "", "", statusCode, err
 	}
 
-	token, err := parseTokenWithClaims(tokenString)
-	if err != nil && strings.Contains(err.Error(), "token is expired by") {
-		claims, _ := token.Claims.(*store.JWTClaims)
-		user, statusCode, err := store.GetUser(claims.Username)
-		if statusCode != "OK" || err != nil {
-			return false, "", statusCode, err
-		}
-
+	token, tokenErr := parseTokenWithClaims(tokenString)
+	claims, _ := token.Claims.(*store.JWTClaims)
+	user, statusCode, err := store.GetUser(claims.Username)
+	if statusCode != "OK" || err != nil {
+		return false, "", "", statusCode, err
+	}
+	if tokenErr != nil && strings.Contains(tokenErr.Error(), "token is expired by") {
 		statusCode, err = store.DeleteSecurityToken(tokenString)
 		if statusCode != "OK" || err != nil {
-			return false, "", statusCode, err
+			return false, "", "", statusCode, err
 		}
 
 		newTokenString, statusCode, err = store.GenerateSecurityToken(user)
 		if statusCode != "OK" || err != nil {
-			return false, "", statusCode, err
+			return false, "", "", statusCode, err
 		}
 
 		token, err = parseTokenWithClaims(newTokenString)
 		if err != nil {
-			return false, "", "ERROR_GENERATING_TOKEN", err
+			return false, "", "", "ERROR_GENERATING_TOKEN", err
 		}
 	}
 
 	if claims, ok := token.Claims.(*store.JWTClaims); !ok || !token.Valid {
-		return false, "", "INVALID_TOKEN", err
+		return false, "", "", "INVALID_TOKEN", err
 	} else if userExists, statusCode, err := store.CheckUserExists(claims.Username); err != nil || !userExists {
-		return false, "", statusCode, err
+		return false, "", "", statusCode, err
 	}
 
 	if newTokenString != "" {
-		return true, newTokenString, "OK", nil
+		return false, user.ID, newTokenString, "OK", nil
 	}
 
-	return true, "", "OK", nil
+	return false, user.ID, "", "OK", nil
 }
 
 // RedirectShortURL takes a short URL redirects you to the long URL from the database and creates a new ShortenedURLVisitsHistory
@@ -109,7 +108,7 @@ func RedirectShortURL(c *gin.Context) {
 
 // UpdateShortURL takes a name and a long URL and updates the ShortenedURL in the database
 func UpdateShortURL(c *gin.Context) {
-	ok, newToken, statusCode, err := checkSecurityToken(c)
+	ok, newToken, _, statusCode, err := checkSecurityToken(c)
 	if ok {
 		var urlData urlUpdateRequest
 		if err := c.ShouldBindJSON(&urlData); err != nil {
@@ -144,7 +143,7 @@ func UpdateShortURL(c *gin.Context) {
 
 // DeleteShortURL deletes the ShortenedURL in the database
 func DeleteShortURL(c *gin.Context) {
-	ok, newToken, statusCode, err := checkSecurityToken(c)
+	ok, newToken, _, statusCode, err := checkSecurityToken(c)
 	if ok {
 		id := c.Param("id")
 
@@ -171,7 +170,7 @@ func DeleteShortURL(c *gin.Context) {
 
 // CreateShortURL takes a name, a long URL and a user ID and creates a new ShortenedURL
 func CreateShortURL(c *gin.Context) {
-	ok, newToken, statusCode, err := checkSecurityToken(c)
+	ok, newToken, _, statusCode, err := checkSecurityToken(c)
 	if ok {
 		var creationRequest urlCreationRequest
 		if err := c.ShouldBindJSON(&creationRequest); err != nil {
@@ -210,9 +209,16 @@ func CreateShortURL(c *gin.Context) {
 
 // GetUserShortenedURLs takes a user ID and returns the user's ShortenedURLs
 func GetUserShortenedURLs(c *gin.Context) {
-	ok, newToken, statusCode, err := checkSecurityToken(c)
+	ok, newToken, tokenUserID, statusCode, err := checkSecurityToken(c)
 	if ok {
 		userID := c.Param("userID")
+
+		if tokenUserID != userID {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"statusCode": "WRONG_USERID_PROVIDED",
+			})
+			return
+		}
 
 		urls, statusCode, err := store.GetUserShortenedURLs(userID)
 		if statusCode != "OK" || err != nil {
@@ -237,11 +243,16 @@ func GetUserShortenedURLs(c *gin.Context) {
 
 // GetUser returns user information by user ID
 func GetUser(c *gin.Context) {
-	ok, newToken, statusCode, err := checkSecurityToken(c)
+	ok, newToken, tokenUserID, statusCode, err := checkSecurityToken(c)
 	if ok {
 		userID := c.Param("userID")
 
-		// TODO: check if the username from the given security token matches the one from the given user ID
+		if tokenUserID != userID {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"statusCode": "WRONG_USERID_PROVIDED",
+			})
+			return
+		}
 
 		user, statusCode, err := store.GetUser(userID)
 		if statusCode != "OK" || err != nil {
@@ -266,9 +277,16 @@ func GetUser(c *gin.Context) {
 
 // UpdateUser takes a first name, a last name, a username, an email and a password and updates the User in the database
 func UpdateUser(c *gin.Context) {
-	ok, newToken, statusCode, err := checkSecurityToken(c)
+	ok, newToken, tokenUserID, statusCode, err := checkSecurityToken(c)
 	if ok {
 		userID := c.Param("userID")
+
+		if tokenUserID != userID {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"statusCode": "WRONG_USERID_PROVIDED",
+			})
+			return
+		}
 
 		var userData userUpdateRequest
 		if err := c.ShouldBindJSON(&userData); err != nil {
@@ -285,7 +303,17 @@ func UpdateUser(c *gin.Context) {
 			Password:  userData.Password,
 		}
 
-		newToken, statusCode, err = store.UpdateUser(user)
+		var tokenHeaderData tokenHeader
+		if err := c.ShouldBindHeader(&tokenHeaderData); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"statusCode": "ERROR_BINDING_HEADER",
+				"error":      err,
+			})
+		}
+
+		tokenString := strings.Replace(tokenHeaderData.Authorization, "Bearer ", "", 1)
+
+		newToken, statusCode, err = store.UpdateUser(user, tokenString)
 		if statusCode != "OK" || err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"statusCode": statusCode,
@@ -310,9 +338,16 @@ func UpdateUser(c *gin.Context) {
 
 // DeleteUser deletes the User in the database
 func DeleteUser(c *gin.Context) {
-	ok, newToken, statusCode, err := checkSecurityToken(c)
+	ok, newToken, tokenUserID, statusCode, err := checkSecurityToken(c)
 	if ok {
 		userID := c.Param("userID")
+
+		if tokenUserID != userID {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"statusCode": "WRONG_USERID_PROVIDED",
+			})
+			return
+		}
 
 		statusCode, err := store.DeleteUser(userID)
 		if statusCode != "OK" || err != nil {
