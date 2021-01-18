@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/devlaminckduncan/url-shortener/handler"
 	"github.com/devlaminckduncan/url-shortener/store"
@@ -71,7 +72,16 @@ func main() {
 
 	store.InitializeStore()
 
-	err := r.Run(":9001")
+	// localhost
+	// err := r.Run(":9001")
+
+	// Heroku
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "9001"
+	}
+
+	err := r.Run(":" + port)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to start the web server:\n%v", err))
 	}

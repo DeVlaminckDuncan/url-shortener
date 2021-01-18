@@ -38,7 +38,7 @@ func InitializeStore() {
 	databaseDriver := "mysql"
 	// databaseDriver := "sqlserver"
 	// connectionString := os.Getenv(strings.ToUpper(databaseDriver) + "_CONNECTION_STRING")
-	connectionString := os.Getenv("MYSQL_CONNECTION_STRING")
+	connectionString := os.Getenv("HEROKU_MYSQL_CONNECTION_STRING")
 
 	var engine *xorm.Engine
 	engine, err = xorm.NewEngine(databaseDriver, connectionString)
