@@ -471,32 +471,32 @@ func GetUserShortenedURLs(userID string) ([]ShortenedURLData, string, error) {
 }
 
 // SaveUser inserts a User object into the database
-func SaveUser(user User) (string, string, error) {
+func SaveUser(user User) (string, string, string, error) {
 	user.ID = uuid.NewV4().String()
 
 	hash, err := generatePasswordHash(user.Password)
 	if err != nil {
 		logError("Failed to generate password hash:\n" + err.Error())
-		return "", "ERROR_GENERATING_HASH", err
+		return "", "", "ERROR_GENERATING_HASH", err
 	}
 	user.Password = hash
 
 	_, err = storeService.URLShortenerDB.Insert(&user)
 	if err != nil {
 		if strings.Contains(err.Error(), "Error 1062") {
-			return "", "DUPLICATE_USER", err
+			return "", "", "DUPLICATE_USER", err
 		}
 
 		logError("Failed to insert data into table User:\n" + err.Error())
-		return "", "ERROR_INSERTING_USER", err
+		return "", "", "ERROR_INSERTING_USER", err
 	}
 
 	token, statusCode, err := GenerateSecurityToken(user)
 	if statusCode != "OK" || err != nil {
-		return "", statusCode, err
+		return "", "", statusCode, err
 	}
 
-	return token, "OK", nil
+	return token, user.ID, "OK", nil
 }
 
 // GetUser returns a User object by ID, username or email

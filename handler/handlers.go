@@ -379,7 +379,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	token, statusCode, err := store.SaveUser(user)
+	token, userID, statusCode, err := store.SaveUser(user)
 	if statusCode != "OK" || err != nil {
 		c.JSON(401, gin.H{
 			"statusCode": statusCode,
@@ -392,6 +392,7 @@ func CreateUser(c *gin.Context) {
 		"message":    "User created successfully",
 		"statusCode": statusCode,
 		"token":      token,
+		"userID":     userID,
 	})
 }
 
