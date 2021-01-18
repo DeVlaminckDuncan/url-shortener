@@ -547,6 +547,10 @@ func UpdateUser(user User, token string) (string, string, error) {
 
 	_, err = storeService.URLShortenerDB.ID(user.ID).Update(&user)
 	if err != nil {
+		if strings.Contains(err.Error(), "Error 1062") {
+			return "", "DUPLICATE_USER", err
+		}
+
 		logError("Failed to update data in table User:\n" + err.Error())
 		return "", "ERROR_UPDATING_USER", err
 	}
