@@ -12,11 +12,9 @@ import (
 	"xorm.io/xorm/log"
 	"xorm.io/xorm/names"
 
-	// _ "github.com/GoogleCloudPlatform/cloudsql-proxy/proxy/dialers/mysql" // The XORM engine uses this package.
 	"github.com/dgrijalva/jwt-go"
 	_ "github.com/go-sql-driver/mysql" // The XORM engine uses this package.
 
-	// _ "github.com/denisenkom/go-mssqldb" // The XORM engine uses this package.
 	uuid "github.com/satori/go.uuid"
 	"xorm.io/xorm"
 )
@@ -26,23 +24,15 @@ type storageService struct {
 }
 
 var storeService = &storageService{}
-var logger *os.File
+var enableLogger bool = true
 
 // InitializeStore creates the database if it doesn't exist and it synchronizes the tables.
 func InitializeStore() {
-	logWriter, err := os.Create("logs/sql.log")
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create log writer:\n%d", err))
-	}
-
 	databaseDriver := "mysql"
-	// databaseDriver := "sqlserver"
-	// connectionString := os.Getenv(strings.ToUpper(databaseDriver) + "_CONNECTION_STRING")
 	connectionString := os.Getenv("HEROKU_MYSQL_CONNECTION_STRING")
 
 	var engine *xorm.Engine
-	engine, err = xorm.NewEngine(databaseDriver, connectionString)
-	// engine, err := xorm.NewEngine("mssql", connectionString)
+	engine, err := xorm.NewEngine(databaseDriver, connectionString)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to open database:\n%d", err))
 	}
@@ -70,7 +60,14 @@ func InitializeStore() {
 		}
 	}
 
-	engine.SetLogger(log.NewSimpleLogger(logWriter))
+	if enableLogger {
+		logWriter, err := os.Create("logs/sql.log")
+		if err != nil {
+			panic(fmt.Sprintf("Failed to create log writer:\n%d", err))
+		}
+
+		engine.SetLogger(log.NewSimpleLogger(logWriter))
+	}
 
 	storeService.URLShortenerDB = engine
 
@@ -179,8 +176,10 @@ func seedDatabase() error {
 }
 
 func logError(errStr string) {
-	fmt.Println(errStr)
-	storeService.URLShortenerDB.Logger().Errorf(errStr)
+	if enableLogger {
+		fmt.Println(errStr)
+		storeService.URLShortenerDB.Logger().Errorf(errStr)
+	}
 }
 
 func checkShortenedURLExists(id string) (bool, error) {
