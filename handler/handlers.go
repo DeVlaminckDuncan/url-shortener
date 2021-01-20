@@ -39,6 +39,29 @@ type tokenHeader struct {
 	Authorization string `header:"Authorization" binding:"required"`
 }
 
+func compareUserIDWithToken(c *gin.Context, userID string, tokenUserID string) bool {
+	if tokenUserID != userID {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message":    "Given user ID does not match the token",
+			"statusCode": "WRONG_USERID_PROVIDED",
+		})
+		return false
+	}
+
+	return true
+}
+
+func getTokenFromHeader(c *gin.Context) (string, string, error) {
+	var tokenHeaderData tokenHeader
+	if err := c.ShouldBindHeader(&tokenHeaderData); err != nil {
+		return "", "ERROR_BINDING_HEADER", err
+	}
+
+	tokenString := strings.Replace(tokenHeaderData.Authorization, "Bearer ", "", 1)
+
+	return tokenString, "OK", nil
+}
+
 func parseTokenWithClaims(tokenString string) (*jwt.Token, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &store.JWTClaims{}, func(t *jwt.Token) (interface{}, error) {
 		return []byte(os.Getenv("SECRET_JWT_KEY")), nil
@@ -48,20 +71,17 @@ func parseTokenWithClaims(tokenString string) (*jwt.Token, error) {
 }
 
 func checkSecurityToken(c *gin.Context) (bool, string, string, string, error) {
-	var tokenHeaderData tokenHeader
-	if err := c.ShouldBindHeader(&tokenHeaderData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return false, "", "", "ERROR_BINDING_HEADER", err
+	tokenString, statusCode, err := getTokenFromHeader(c)
+	if tokenString == "" || statusCode != "OK" || err != nil {
+		return false, "", "", statusCode, err
 	}
-
-	tokenString := strings.Replace(tokenHeaderData.Authorization, "Bearer ", "", 1)
-	var newTokenString string
 
 	tokenExists, statusCode, err := store.CheckSecurityTokenExists(tokenString)
 	if statusCode != "OK" || err != nil || !tokenExists {
 		return false, "", "", statusCode, err
 	}
 
+	var newTokenString string
 	token, tokenErr := parseTokenWithClaims(tokenString)
 	claims, _ := token.Claims.(*store.JWTClaims)
 	user, statusCode, err := store.GetUser(claims.Username)
@@ -123,7 +143,9 @@ func UpdateShortURL(c *gin.Context) {
 		statusCode, err = store.UpdateShortenedURL(shortenedURL)
 		if statusCode != "OK" || err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
+				"message":    "Something went wrong",
 				"statusCode": statusCode,
+				"error":      err,
 			})
 			return
 		}
@@ -135,8 +157,9 @@ func UpdateShortURL(c *gin.Context) {
 		})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{
+			"message":    "You are not logged in",
 			"statusCode": statusCode,
-			"err":        err,
+			"error":      err,
 		})
 	}
 }
@@ -150,7 +173,9 @@ func DeleteShortURL(c *gin.Context) {
 		statusCode, err := store.DeleteShortenedURL(id)
 		if statusCode != "OK" || err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
+				"message":    "Something went wrong",
 				"statusCode": statusCode,
+				"error":      err,
 			})
 			return
 		}
@@ -162,8 +187,9 @@ func DeleteShortURL(c *gin.Context) {
 		})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{
+			"message":    "You are not logged in",
 			"statusCode": statusCode,
-			"err":        err,
+			"error":      err,
 		})
 	}
 }
@@ -187,6 +213,7 @@ func CreateShortURL(c *gin.Context) {
 			}
 
 			c.JSON(status, gin.H{
+				"message":    "Something went wrong",
 				"statusCode": statusCode,
 				"error":      err,
 			})
@@ -201,8 +228,9 @@ func CreateShortURL(c *gin.Context) {
 		})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{
+			"message":    "You are not logged in",
 			"statusCode": statusCode,
-			"err":        err,
+			"error":      err,
 		})
 	}
 }
@@ -213,16 +241,14 @@ func GetUserShortenedURLs(c *gin.Context) {
 	if ok {
 		userID := c.Param("userID")
 
-		if tokenUserID != userID {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"statusCode": "WRONG_USERID_PROVIDED",
-			})
+		if compareUserIDWithToken(c, userID, tokenUserID) == false {
 			return
 		}
 
 		urls, statusCode, err := store.GetUserShortenedURLs(userID)
 		if statusCode != "OK" || err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
+				"message":    "Something went wrong",
 				"statusCode": statusCode,
 				"error":      err,
 			})
@@ -230,13 +256,15 @@ func GetUserShortenedURLs(c *gin.Context) {
 		}
 
 		c.JSON(200, gin.H{
-			"urls":     urls,
-			"newToken": newToken,
+			"statusCode": statusCode,
+			"urls":       urls,
+			"newToken":   newToken,
 		})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{
+			"message":    "You are not logged in",
 			"statusCode": statusCode,
-			"err":        err,
+			"error":      err,
 		})
 	}
 }
@@ -247,16 +275,14 @@ func GetUser(c *gin.Context) {
 	if ok {
 		userID := c.Param("userID")
 
-		if tokenUserID != userID {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"statusCode": "WRONG_USERID_PROVIDED",
-			})
+		if compareUserIDWithToken(c, userID, tokenUserID) == false {
 			return
 		}
 
 		user, statusCode, err := store.GetUser(userID)
 		if statusCode != "OK" || err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
+				"message":    "Something went wrong",
 				"statusCode": statusCode,
 				"error":      err,
 			})
@@ -264,13 +290,15 @@ func GetUser(c *gin.Context) {
 		}
 
 		c.JSON(200, gin.H{
-			"user":     user,
-			"newToken": newToken,
+			"statusCode": statusCode,
+			"user":       user,
+			"newToken":   newToken,
 		})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{
+			"message":    "You are not logged in",
 			"statusCode": statusCode,
-			"err":        err,
+			"error":      err,
 		})
 	}
 }
@@ -281,10 +309,7 @@ func UpdateUser(c *gin.Context) {
 	if ok {
 		userID := c.Param("userID")
 
-		if tokenUserID != userID {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"statusCode": "WRONG_USERID_PROVIDED",
-			})
+		if compareUserIDWithToken(c, userID, tokenUserID) == false {
 			return
 		}
 
@@ -303,19 +328,15 @@ func UpdateUser(c *gin.Context) {
 			Password:  userData.Password,
 		}
 
-		var tokenHeaderData tokenHeader
-		if err := c.ShouldBindHeader(&tokenHeaderData); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"statusCode": "ERROR_BINDING_HEADER",
-				"error":      err,
-			})
+		tokenString, statusCode, err := getTokenFromHeader(c)
+		if tokenString == "" || statusCode != "OK" || err != nil {
+			return
 		}
-
-		tokenString := strings.Replace(tokenHeaderData.Authorization, "Bearer ", "", 1)
 
 		newToken, statusCode, err = store.UpdateUser(user, tokenString)
 		if statusCode != "OK" || err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
+				"message":    "Something went wrong",
 				"statusCode": statusCode,
 				"error":      err,
 				"newToken":   newToken,
@@ -330,8 +351,9 @@ func UpdateUser(c *gin.Context) {
 		})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{
+			"message":    "You are not logged in",
 			"statusCode": statusCode,
-			"err":        err,
+			"error":      err,
 		})
 	}
 }
@@ -342,16 +364,14 @@ func DeleteUser(c *gin.Context) {
 	if ok {
 		userID := c.Param("userID")
 
-		if tokenUserID != userID {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"statusCode": "WRONG_USERID_PROVIDED",
-			})
+		if compareUserIDWithToken(c, userID, tokenUserID) == false {
 			return
 		}
 
 		statusCode, err := store.DeleteUser(userID)
 		if statusCode != "OK" || err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
+				"message":    "Something went wrong",
 				"statusCode": statusCode,
 				"error":      err,
 			})
@@ -365,8 +385,9 @@ func DeleteUser(c *gin.Context) {
 		})
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{
+			"message":    "You are not logged in",
 			"statusCode": statusCode,
-			"err":        err,
+			"error":      err,
 		})
 	}
 }
@@ -382,6 +403,7 @@ func CreateUser(c *gin.Context) {
 	token, userID, statusCode, err := store.SaveUser(user)
 	if statusCode != "OK" || err != nil {
 		c.JSON(401, gin.H{
+			"message":    "Something went wrong",
 			"statusCode": statusCode,
 			"error":      err,
 		})
@@ -413,6 +435,7 @@ func CheckUserLogin(c *gin.Context) {
 	token, userID, statusCode, err := store.CheckLogin(user)
 	if statusCode != "OK" || err != nil {
 		c.JSON(401, gin.H{
+			"message":    "Something went wrong",
 			"statusCode": statusCode,
 			"error":      err,
 		})
