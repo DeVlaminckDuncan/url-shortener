@@ -72,10 +72,6 @@ func main() {
 
 	store.InitializeStore()
 
-	// localhost
-	// err := r.Run(":9001")
-
-	// Heroku
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "9001"
