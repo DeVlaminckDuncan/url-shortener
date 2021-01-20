@@ -25,7 +25,7 @@ type storageService struct {
 
 var storeService = &storageService{}
 
-const enableLogger, enableSeedDatabase = true, true
+var enableLogger, enableSeedDatabase = true, true
 
 // InitializeStore creates the database if it doesn't exist and it synchronizes the tables.
 func InitializeStore() {
@@ -82,6 +82,10 @@ func InitializeStore() {
 	engine.Sync2(new(User))
 	engine.Sync2(new(UserToken))
 	fmt.Println("Finished syncing tables!")
+
+	if os.Getenv("ENABLE_SEED_DATABASE") == "false" {
+		enableSeedDatabase = false
+	}
 
 	if !databaseExists && enableSeedDatabase {
 		err = seedDatabase()
