@@ -61,6 +61,10 @@ func InitializeStore() {
 		}
 	}
 
+	if os.Getenv("ENABLE_LOGGER") == "false" {
+		enableLogger = false
+	}
+
 	if enableLogger {
 		logWriter, err := os.Create("logs/sql.log")
 		if err != nil {
