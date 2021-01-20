@@ -29,7 +29,7 @@ var enableLogger bool = true
 // InitializeStore creates the database if it doesn't exist and it synchronizes the tables.
 func InitializeStore() {
 	databaseDriver := "mysql"
-	connectionString := os.Getenv("HEROKU_MYSQL_CONNECTION_STRING")
+	connectionString := os.Getenv("MYSQL_CONNECTION_STRING")
 
 	var engine *xorm.Engine
 	engine, err := xorm.NewEngine(databaseDriver, connectionString)
