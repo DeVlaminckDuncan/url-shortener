@@ -27,3 +27,7 @@
 # Google Cloud
 .gcloudignore
 app.yaml
+
+# Logs
+logs/
+*.log
