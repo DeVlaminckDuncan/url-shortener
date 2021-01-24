@@ -23,3 +23,7 @@
 .env
 .env.local
 .env.*.local
+
+# Google Cloud
+.gcloudignore
+app.yaml
