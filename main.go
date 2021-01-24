@@ -17,7 +17,7 @@ func main() {
 	r := gin.Default()
 
 	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowOrigins = []string{"http://localhost:8080", "https://go-url-shortener.netlify.app"}
+	corsConfig.AllowOrigins = []string{"http://localhost:8080", "https://gourlshortener-heroku.netlify.app", "https://gourlshortener-google.netlify.app", "https://gourlshortener-azure.netlify.app", "https://gourlshortener-aws.netlify.app"}
 	corsConfig.AddAllowHeaders("Origin", "Authorization")
 	corsConfig.AddAllowHeaders("OPTIONS", "GET", "POST", "PUT", "DELETE")
 
