@@ -8,7 +8,7 @@ If you would like to test this project out using a UI, download this basic front
 - Golang https://golang.org/
 - Install the Golang packages by running `go get`
 - Create a file called `.env` containing:
-  - `MYSQL_CONNECTION_STRING:'mysqlUsername:password@tcp(localhost:3306)/URLShortenerDB'`
+  - `MYSQL_CONNECTION_STRING='mysqlUsername:password@tcp(localhost:3306)/URLShortenerDB'`
   - `SECRET_JWT_KEY='yourSecretJWTKey'` if you don't know how to generate one, you can use this website https://www.grc.com/passwords.htm
   - *optional* - `ENABLE_LOGGER='false'`
   - *optional* - `ENABLE_SEED_DATABASE='false'`
