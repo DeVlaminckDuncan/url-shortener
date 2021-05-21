@@ -1,0 +1,323 @@
+{
+	"info": {
+		"_postman_id": "e456235c-7530-459c-add7-a57357b65dea",
+		"name": "Go URL Shortener",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "http://localhost:9001/short-urls",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkR1bmNhbkRWIiwiZXhwIjoxNzAwMDAwMDAwfQ.X4Ju07IIAx0wij-iUGgMZn8XSHTT3u5RtGYL7eSmEb4",
+						"type": "text",
+						"disabled": true
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"XORM manual\",\r\n    \"longURL\": \"https://gobook.io/read/gitea.com/xorm/manual-en-US/\",\r\n    \"userID\": \"e0dba740-fc4b-4977-872c-d360239e6b1b\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9001/api/short-urls",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"short-urls"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/short-urls/161b2f3e-5295-11eb-ae93-0242ac130002",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"name\": \"Golang tutorial for beginners\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9001/api/short-urls/161b2f3e-5295-11eb-ae93-0242ac130002",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"short-urls",
+						"161b2f3e-5295-11eb-ae93-0242ac130002"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/short-urls/161b2f3e-5295-11eb-ae93-0242ac130002",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9001/api/short-urls/161b2f3e-5295-11eb-ae93-0242ac130002",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"short-urls",
+						"161b2f3e-5295-11eb-ae93-0242ac130002"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/gYMuH2Bw",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9001/gYMuH2Bw",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"gYMuH2Bw"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/short-urls/e0dba740-fc4b-4977-872c-d360239e6b1b",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9001/api/short-urls/e0dba740-fc4b-4977-872c-d360239e6b1b",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"short-urls",
+						"e0dba740-fc4b-4977-872c-d360239e6b1b"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/signup",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"firstName\": \"Duncan\",\r\n    \"lastName\": \"De Vlaminck\",\r\n    \"username\": \"DuncanDeVlaminck\",\r\n    \"email\": \"duncandevlaminck@gmail.be\",\r\n    \"password\": \"Astrongpassword.1\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9001/api/signup",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"signup"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/login",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\": \"DuncanDV\",    \r\n    \"password\": \"Astrongpassword.1\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9001/api/login",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/user/e0dba740-fc4b-4977-872c-d360239e6b1b",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:9001/api/user/e0dba740-fc4b-4977-872c-d360239e6b1b",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"user",
+						"e0dba740-fc4b-4977-872c-d360239e6b1b"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/user/e0dba740-fc4b-4977-872c-d360239e6b1b",
+			"request": {
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"firstName\": \"Duncan\",\r\n    \"lastName\": \"De Vlaminck\",\r\n    \"username\": \"DeVlaminckDuncan\",\r\n    \"email\": \"duncandevlaminck@gmail.be\",\r\n    \"password\": \"ThisPasswordIsVeryStrong.1\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9001/api/user/e0dba740-fc4b-4977-872c-d360239e6b1b",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"user",
+						"e0dba740-fc4b-4977-872c-d360239e6b1b"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "http://localhost:9001/user/e0dba740-fc4b-4977-872c-d360239e6b1b",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:9001/api/user/e0dba740-fc4b-4977-872c-d360239e6b1b",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "9001",
+					"path": [
+						"api",
+						"user",
+						"e0dba740-fc4b-4977-872c-d360239e6b1b"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6IkR1bmNhbkRWIiwiZXhwIjoxNzAwMDAwMDAwfQ.X4Ju07IIAx0wij-iUGgMZn8XSHTT3u5RtGYL7eSmEb4",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
